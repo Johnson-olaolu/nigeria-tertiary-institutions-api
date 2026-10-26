@@ -1,4 +1,4 @@
-import University from "../models/university";
+import University from "../models/university.js";
 
 // Get all universities with populated master institution metadata
 export const getAllUniversities = async (req, res, next) => {
