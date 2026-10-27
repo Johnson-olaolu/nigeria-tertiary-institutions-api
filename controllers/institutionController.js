@@ -4,7 +4,7 @@ import Institution from "../models/institution.js";
 export const getAllInstitutions = async (req, res, next) => {
     try {
         const { state, ownership, category } = req.query;
-        let filter = { isActive: true };
+        let filter = {};
 
         if (state) filter.state = state;
         if (ownership) filter.ownership = ownership;

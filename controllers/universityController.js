@@ -3,7 +3,7 @@ import University from "../models/university.js";
 // Get all universities with populated master institution metadata
 export const getAllUniversities = async (req, res, next) => {
     try {
-        const universities = await University.find({ isActive: true }).populate("institution");
+        const universities = await University.find().populate("institution");
 
         res.status(200).json({
             success: true,

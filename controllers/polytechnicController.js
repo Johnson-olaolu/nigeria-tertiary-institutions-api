@@ -3,7 +3,7 @@ import Polytechnic from "../models/polytechnic.js";
 // Get all polytechnics with populated master institution metadata
 export const getAllPolytechnics = async (req, res, next) => {
     try {
-        const polytechnics = await Polytechnic.find({ isActive: true }).populate("institution");
+        const polytechnics = await Polytechnic.find().populate("institution");
 
         res.status(200).json({
             success: true,

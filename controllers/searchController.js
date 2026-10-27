@@ -53,7 +53,6 @@ export const globalSearch = async (req, res, next) => {
         // Case-insensitive regex search on institution names
         const institutions = await Institution.find({
             name: { $regex: keyword, $options: "i" },
-            isActive: true,
         });
 
         res.status(200).json({

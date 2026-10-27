@@ -3,7 +3,7 @@ import CollegeOfEduction from "../models/collegeOfEducation.js";
 // Get all colleges of education
 export const getAllCollegesOfEducation = async (req, res, next) => {
     try {
-        const colleges = await CollegeOfEduction.find({ isActive: true }).populate("institution");
+        const colleges = await CollegeOfEduction.find().populate("institution");
 
         res.status(200).json({
             success: true,
