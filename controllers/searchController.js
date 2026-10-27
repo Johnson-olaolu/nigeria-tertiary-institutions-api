@@ -89,7 +89,7 @@ export const getInstitutionsByCourse = async (req, res, next) => {
         // 3. Colleges of Education search & filter
         const colleges = await collegeOfEducation.find({
             "courses.course_id": courseId,
-        }).populate("institution").lean();
+        }).lean();
 
         const filteredColleges = colleges.map(college => ({
             ...college,
