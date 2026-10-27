@@ -3,12 +3,12 @@ import Polytechnic from "../models/polytechnic.js";
 import collegeOfEducation from "../models/collegeOfEducation.js";
 import Institution from "../models/institution.js";
 
-// Find institutions offering a specific faculty ID or name
+// Find institutions matching a specific faculty or school ID/name
 export const getInstitutionsByFaculty = async (req, res, next) => {
     try {
         const { facultyId } = req.params;
 
-        // Search universities matching faculty id or name (case-insensitive)
+        // 1. Search universities matching faculties
         const universities = await University.find({
             $or: [
                 { "faculties.id": { $regex: facultyId, $options: "i" } },
@@ -16,7 +16,6 @@ export const getInstitutionsByFaculty = async (req, res, next) => {
             ]
         }).populate("institution").lean();
 
-        // Filter the response arrays to keep only the matching faculty
         const filteredUniversities = universities.map(uni => ({
             ...uni,
             faculties: uni.faculties?.filter(faculty =>
@@ -25,12 +24,30 @@ export const getInstitutionsByFaculty = async (req, res, next) => {
             )
         }));
 
+        // 2. Search polytechnics matching schools
+        const polytechnics = await Polytechnic.find({
+            $or: [
+                { "schools.id": { $regex: facultyId, $options: "i" } },
+                { "schools.faculty_name": { $regex: facultyId, $options: "i" } }
+            ]
+        }).populate("institution").lean();
+
+        const filteredPolytechnics = polytechnics.map(poly => ({
+            ...poly,
+            schools: poly.schools?.filter(school =>
+                new RegExp(facultyId, "i").test(school.id) ||
+                new RegExp(facultyId, "i").test(school.faculty_name)
+            )
+        }));
+
         res.status(200).json({
             success: true,
             facultyId,
             results: {
                 universitiesCount: filteredUniversities.length,
+                polytechnicsCount: filteredPolytechnics.length,
                 universities: filteredUniversities,
+                polytechnics: filteredPolytechnics,
             },
         });
     } catch (error) {
