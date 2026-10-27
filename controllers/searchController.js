@@ -3,6 +3,41 @@ import Polytechnic from "../models/polytechnic.js";
 import collegeOfEducation from "../models/collegeOfEducation.js";
 import Institution from "../models/institution.js";
 
+// Find institutions offering a specific faculty ID or name
+export const getInstitutionsByFaculty = async (req, res, next) => {
+    try {
+        const { facultyId } = req.params;
+
+        // Search universities matching faculty id or name (case-insensitive)
+        const universities = await University.find({
+            $or: [
+                { "faculties.id": { $regex: facultyId, $options: "i" } },
+                { "faculties.faculty_name": { $regex: facultyId, $options: "i" } }
+            ]
+        }).populate("institution").lean();
+
+        // Filter the response arrays to keep only the matching faculty
+        const filteredUniversities = universities.map(uni => ({
+            ...uni,
+            faculties: uni.faculties?.filter(faculty =>
+                new RegExp(facultyId, "i").test(faculty.id) ||
+                new RegExp(facultyId, "i").test(faculty.faculty_name)
+            )
+        }));
+
+        res.status(200).json({
+            success: true,
+            facultyId,
+            results: {
+                universitiesCount: filteredUniversities.length,
+                universities: filteredUniversities,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // Find institutions offering a specific course code/ID and filter response arrays
 export const getInstitutionsByCourse = async (req, res, next) => {
     try {
