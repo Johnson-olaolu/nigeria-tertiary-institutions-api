@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 
 const courseSchema = new mongoose.Schema({
-    courseId: {
+    course_id: {
         type: String,
         required: true,
         trim: true,
     },
-    courseName: {
+    course_name: {
         type: String,
         required: true,
         trim: true,
@@ -19,15 +19,9 @@ const courseSchema = new mongoose.Schema({
     ],
 });
 
-const collegeOfEductionSchema = new mongoose.Schema(
+const collegeOfEducationSchema = new mongoose.Schema(
     {
-        institution: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Institution",
-            required: [true, "Associated institution reference is required"],
-            unique: true,
-        },
-        programType: {
+        program_type: {
             type: String,
             default: "Nigeria Certificate in Education (NCE)",
             trim: true,
@@ -40,7 +34,11 @@ const collegeOfEductionSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        collection: "collegeofeducations", // Force exact collection name
     }
 );
 
-export default mongoose.model("CollegeOfEduction", collegeOfEductionSchema);
+
+const CollegeOfEducation = mongoose.model("CollegeOfEducation", collegeOfEducationSchema, "collegeofeducations");
+
+export default CollegeOfEducation;
