@@ -3,36 +3,57 @@ import Polytechnic from "../models/polytechnic.js";
 import collegeOfEducation from "../models/collegeOfEducation.js";
 import Institution from "../models/institution.js";
 
-// Find institutions offering a specific course code/ID
+// Find institutions offering a specific course code/ID and filter response arrays
 export const getInstitutionsByCourse = async (req, res, next) => {
     try {
         const { courseId } = req.params;
 
-        // Search universities offering the course inside faculties
+        // 1. Universities search & filter
         const universities = await University.find({
             "faculties.courses.course_id": courseId,
-        }).populate("institution");
+        }).populate("institution").lean();
 
-        // Search polytechnics offering the course inside schools
+        const filteredUniversities = universities.map(uni => ({
+            ...uni,
+            faculties: uni.faculties?.map(faculty => ({
+                ...faculty,
+                courses: faculty.courses?.filter(course => course.course_id === courseId)
+            })).filter(faculty => faculty.courses?.length > 0)
+        }));
+
+        // 2. Polytechnics search & filter
         const polytechnics = await Polytechnic.find({
             "schools.courses.course_id": courseId,
-        }).populate("institution");
+        }).populate("institution").lean();
 
-        // Search colleges of education offering the course inside courses
+        const filteredPolytechnics = polytechnics.map(poly => ({
+            ...poly,
+            schools: poly.schools?.map(school => ({
+                ...school,
+                courses: school.courses?.filter(course => course.course_id === courseId)
+            })).filter(school => school.courses?.length > 0)
+        }));
+
+        // 3. Colleges of Education search & filter
         const colleges = await collegeOfEducation.find({
             "courses.course_id": courseId,
-        }).populate("institution");
+        }).populate("institution").lean();
+
+        const filteredColleges = colleges.map(college => ({
+            ...college,
+            courses: college.courses?.filter(course => course.course_id === courseId)
+        }));
 
         res.status(200).json({
             success: true,
             courseId,
             results: {
-                universitiesCount: universities.length,
-                polytechnicsCount: polytechnics.length,
-                collegesOfEducationCount: colleges.length,
-                universities,
-                polytechnics,
-                collegesOfEducation: colleges,
+                universitiesCount: filteredUniversities.length,
+                polytechnicsCount: filteredPolytechnics.length,
+                collegesOfEducationCount: filteredColleges.length,
+                universities: filteredUniversities,
+                polytechnics: filteredPolytechnics,
+                collegesOfEducation: filteredColleges,
             },
         });
     } catch (error) {
@@ -65,21 +86,21 @@ export const globalSearch = async (req, res, next) => {
             if (doc.institutions) {
                 if (doc.institutions.universities) {
                     doc.institutions.universities = doc.institutions.universities.filter(uni =>
-                        new RegExp(keyword, "i").test(uni.name) || 
+                        new RegExp(keyword, "i").test(uni.name) ||
                         new RegExp(keyword, "i").test(uni.ownership) ||
                         new RegExp(keyword, "i").test(uni.State)
                     );
                 }
                 if (doc.institutions.polytechnic) {
                     doc.institutions.polytechnic = doc.institutions.polytechnic.filter(poly =>
-                        new RegExp(keyword, "i").test(poly.name) || 
+                        new RegExp(keyword, "i").test(poly.name) ||
                         new RegExp(keyword, "i").test(poly.ownership) ||
                         new RegExp(keyword, "i").test(poly.State)
                     );
                 }
                 if (doc.institutions.college_of_education) {
                     doc.institutions.college_of_education = doc.institutions.college_of_education.filter(col =>
-                        new RegExp(keyword, "i").test(col.name) || 
+                        new RegExp(keyword, "i").test(col.name) ||
                         new RegExp(keyword, "i").test(col.ownership) ||
                         new RegExp(keyword, "i").test(col.State)
                     );
