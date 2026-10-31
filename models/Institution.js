@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 
+export const CATEGORIES = ["University", "Polytechnic", "College of Education"];
+
 const institutionSchema = new mongoose.Schema(
     {
-        institutionId: {
+        code: {
             type: String,
-            required: [true, "Institution ID is required"],
-            unique: true,
+            required: [true, "Institution code is required"],
+            unique: true, // Stable public identifier (e.g. "ABU"), used by the seed data and API lookups
             trim: true,
         },
         name: {
@@ -15,7 +17,7 @@ const institutionSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            enum: ["University", "Polytechnic", "College of Education"],
+            enum: CATEGORIES,
             required: [true, "Institution category is required"],
             trim: true,
         },
@@ -42,10 +44,16 @@ const institutionSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
     },
     {
         timestamps: true,
     }
 );
+
+institutionSchema.index({ category: 1, state: 1 });
 
 export default mongoose.model("Institution", institutionSchema);

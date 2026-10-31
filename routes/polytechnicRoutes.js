@@ -1,12 +1,18 @@
 import express from "express";
-import { getAllPolytechnics, getPolytechnicById } from "../controllers/polytechnicController.js";
+import { getAllInstitutions, getInstitutionByCode } from "../controllers/institutionController.js";
 
 const router = express.Router();
 
-// Get all polytechnics
-router.get('/polytechnics', getAllPolytechnics);
+// Restrict institution lookups to the Polytechnic category
+const setCategory = (req, res, next) => {
+    req.category = "Polytechnic";
+    next();
+};
 
-// Get single polytechnic
-router.get('/polytechnics/:id', getPolytechnicById);
+// Get all polytechnics
+router.get('/polytechnics', setCategory, getAllInstitutions);
+
+// Get single Polytechnic by its code
+router.get('/polytechnics/:code', setCategory, getInstitutionByCode);
 
 export default router;

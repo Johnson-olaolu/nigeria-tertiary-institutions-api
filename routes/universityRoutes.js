@@ -1,12 +1,18 @@
 import express from "express";
-import { getAllUniversities, getUniversityById } from "../controllers/universityController.js";
+import { getAllInstitutions, getInstitutionByCode } from "../controllers/institutionController.js";
 
 const router = express.Router();
 
-// Get all universities
-router.get('/universities', getAllUniversities);
+// Restrict institution lookups to the University category
+const setCategory = (req, res, next) => {
+    req.category = "University";
+    next();
+};
 
-// Get single university by ID
-router.get('/universities/:id', getUniversityById);
+// Get all universities
+router.get('/universities', setCategory, getAllInstitutions);
+
+// Get single University by its code
+router.get('/universities/:code', setCategory, getInstitutionByCode);
 
 export default router;

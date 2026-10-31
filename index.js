@@ -8,6 +8,8 @@ import institutionRoutes from "./routes/institutionRoutes.js";
 import universityRoutes from "./routes/universityRoutes.js";
 import polytechnicRoutes from "./routes/polytechnicRoutes.js";
 import collegeRoutes from "./routes/collegeRoutes.js";
+import facultyRoutes from "./routes/facultyRoutes.js";
+import courseRoutes from "./routes/courseRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 
 // Import Error Handler Middleware
@@ -31,6 +33,8 @@ app.use("/api", institutionRoutes);
 app.use("/api", universityRoutes);
 app.use("/api", polytechnicRoutes);
 app.use("/api", collegeRoutes);
+app.use("/api", facultyRoutes);
+app.use("/api", courseRoutes);
 app.use("/api/search", searchRoutes);
 
 // Global Error Handling Middleware

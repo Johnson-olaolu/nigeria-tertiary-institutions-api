@@ -1,12 +1,12 @@
 import express from "express";
-import { getAllInstitutions, getInstitutionById } from "../controllers/institutionController.js";
+import { getAllInstitutions, getInstitutionByCode } from "../controllers/institutionController.js";
 
 const router = express.Router();
 
 // Get all institutions
 router.get('/institutions', getAllInstitutions);
 
-// Get single institution
-router.get('/institutions/:id', getInstitutionById);
+// Get single institution by its code (e.g. /api/institutions/ABU)
+router.get('/institutions/:code', getInstitutionByCode);
 
 export default router;
