@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>API Analytics · Nigeria Tertiary Institutions API</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --page: #f9f9f7;
+            --surface: #fcfcfb;
+            --ink: #0b0b0b;
+            --ink-2: #52514e;
+            --muted: #898781;
+            --grid: #e1e0d9;
+            --axis: #c3c2b7;
+            --border: rgba(11, 11, 11, 0.10);
+            --wash: rgba(11, 11, 11, 0.04);
+            --series-1: #2a78d6;
+            --series-2: #eb6834;
+            --meter: #86b6ef;
+            --good: #0ca30c;
+            --good-text: #006300;
+            --warning: #fab219;
+            --critical: #d03b3b;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+                --page: #0d0d0d;
+                --surface: #1a1a19;
+                --ink: #f0efec;
+                --ink-2: #c3c2b7;
+                --muted: #898781;
+                --grid: #2c2c2a;
+                --axis: #383835;
+                --border: rgba(255, 255, 255, 0.10);
+                --wash: rgba(255, 255, 255, 0.05);
+                --series-1: #3987e5;
+                --series-2: #d95926;
+                --meter: #256abf;
+                --good-text: #0ca30c;
+                --critical: #e66767;
+            }
+        }
+        * { box-sizing: border-box; }
+        [x-cloak] { display: none !important; }
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--ink);
+            font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+        .wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; }
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        header h1 { font-size: 20px; margin: 0; }
+        header .sub { color: var(--ink-2); font-size: 13px; }
+        .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .segmented {
+            display: inline-flex;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            padding: 2px;
+        }
+        .segmented button {
+            border: 0;
+            background: none;
+            color: var(--ink-2);
+            font: inherit;
+            font-size: 13px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .segmented button:hover { background: var(--wash); }
+        .segmented button[aria-pressed="true"] { background: var(--ink); color: var(--surface); font-weight: 600; }
+        .segmented .divider { width: 1px; margin: 4px 2px; background: var(--border); }
+        .btn {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--ink);
+            font: inherit;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .btn:hover { background: var(--wash); }
+        .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+        .notice {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--ink-2);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        .notice.error { border-color: var(--critical); color: var(--critical); }
+        h2 { font-size: 15px; margin: 28px 0 10px; }
+        .grid { display: grid; gap: 12px; }
+        .tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        .cols-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+        .cols-3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            min-width: 0;
+        }
+        .card h3 { font-size: 13px; font-weight: 600; margin: 0 0 10px; }
+        .card h3 small { font-weight: 400; color: var(--muted); }
+        .tile .label { font-size: 13px; color: var(--ink-2); }
+        .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+        .tile .delta { font-size: 12px; color: var(--ink-2); }
+        .tile .delta.up { color: var(--good-text); }
+        .chart-box { position: relative; height: 260px; }
+        .chart-box.small { height: 180px; }
+        .facts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+        .facts strong { color: var(--ink); font-weight: 600; }
+        .bars { list-style: none; margin: 0; padding: 0; }
+        .bars li {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            column-gap: 10px;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        .bars .row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bars .row-value { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+        .bars .meter { grid-column: 1 / -1; height: 4px; margin-top: 3px; border-radius: 2px; background: var(--wash); }
+        .bars .meter span { display: block; height: 100%; border-radius: 2px; background: var(--meter); }
+        .empty { color: var(--muted); font-size: 13px; margin: 0; }
+        .big { font-size: 26px; font-weight: 600; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+        th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+        th.sortable { cursor: pointer; user-select: none; }
+        th.sortable:hover { color: var(--ink); }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        td.wrap-cell { white-space: normal; overflow-wrap: anywhere; min-width: 220px; }
+        tbody tr:hover { background: var(--wash); }
+        code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .status { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+        .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+        .status.s4::before { background: var(--warning); }
+        .status.s5::before { background: var(--critical); }
+    </style>
+</head>
+<body>
+{{#*inline "countList"}}
+    <section class="card">
+        <h3>{{title}}{{#if note}} <small>{{note}}</small>{{/if}}</h3>
+        <p class="empty" x-show="!(stats.{{list}} || []).length">No data in this range</p>
+        <ol class="bars">
+            <template x-for="row in (stats.{{list}} || []).slice(0, 10)" :key="row.key">
+                <li>
+                    <span class="row-label" x-text="row.key" :title="row.key"></span>
+                    <span class="row-value" x-text="fmt(row.count)"></span>
+                    <span class="meter"><span :style="`width: ${share(row.count, stats.{{list}})}%`"></span></span>
+                </li>
+            </template>
+        </ol>
+    </section>
+{{/inline}}
+
+<div class="wrap" x-data="dashboard()" x-init="init()">
+    <header>
+        <div>
+            <h1>API Analytics</h1>
+            <div class="sub">
+                Signed in as {{username}} · Times in WAT
+                <span x-show="loadedAt" x-cloak> · Updated <span x-text="clock(loadedAt)"></span></span>
+            </div>
+        </div>
+        <div class="controls">
+            <div class="segmented" role="group" aria-label="Time range">
+                <template x-for="option in ranges" :key="option.value">
+                    <span style="display: contents">
+                        <span class="divider" x-show="option.value === '90d'"></span>
+                        <button type="button" :aria-pressed="range === option.value" @click="setRange(option.value)" x-text="option.label"></button>
+                    </span>
+                </template>
+            </div>
+            <div class="segmented" role="group" aria-label="Group by" x-show="isRollup" x-cloak>
+                <template x-for="option in ['day', 'week', 'month']" :key="option">
+                    <button type="button" :aria-pressed="group === option" @click="setGroup(option)" x-text="option[0].toUpperCase() + option.slice(1)"></button>
+                </template>
+            </div>
+            <button type="button" class="btn" @click="refresh()" :disabled="loading" x-text="loading ? 'Loading…' : 'Refresh'"></button>
+            <form method="post" action="/admin/logout" style="margin: 0">
+                <button type="submit" class="btn">Log out</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="notice error" x-show="error" x-cloak x-text="error"></div>
+    <div class="notice" x-show="isRollup" x-cloak>
+        Long ranges use daily rollups for full days up to yesterday. Unique consumers and p95 latency are averages of the daily values, and top lists are merged from each day's top 25.
+    </div>
+
+    <template x-if="stats">
+        <main>
+            <!-- 1. Overview -->
+            <div class="grid tiles">
+                <div class="card tile">
+                    <div class="label">Requests</div>
+                    <div class="value" x-text="fmt(stats.overview.requests)"></div>
+                    <div class="delta" :class="{ up: delta() > 0 }" x-text="deltaText()"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label" x-text="isRollup ? 'Avg daily unique consumers' : 'Unique consumers'"></div>
+                    <div class="value" x-text="fmt(stats.overview.uniqueConsumers)"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label">Success rate</div>
+                    <div class="value" x-text="pct(stats.overview.success, stats.overview.requests)"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label">Client errors (4xx)</div>
+                    <div class="value" x-text="pct(stats.overview.clientErrors, stats.overview.requests)"></div>
+                    <div class="delta" x-text="fmt(stats.overview.clientErrors) + ' requests'"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label">Server errors (5xx)</div>
+                    <div class="value" x-text="pct(stats.overview.serverErrors, stats.overview.requests)"></div>
+                    <div class="delta" x-text="fmt(stats.overview.serverErrors) + ' requests'"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label">Avg response time</div>
+                    <div class="value" x-text="ms(stats.overview.avgMs)"></div>
+                </div>
+                <div class="card tile">
+                    <div class="label" x-text="isRollup ? 'p95 response time (daily avg)' : 'p95 response time'"></div>
+                    <div class="value" x-text="ms(stats.overview.p95Ms)"></div>
+                </div>
+            </div>
+
+            <!-- 2. Traffic over time -->
+            <h2>Traffic over time</h2>
+            <section class="card">
+                <h3>Requests per <span x-text="stats.unit"></span></h3>
+                <div class="chart-box"><canvas id="trafficChart" aria-label="Requests over time, split into successful and failed requests" role="img"></canvas></div>
+                <div class="facts">
+                    <span>Busiest hour: <strong x-text="stats.busiestHour == null ? '—' : hourLabel(stats.busiestHour)"></strong></span>
+                    <span>Busiest day: <strong x-text="stats.busiestDay ? dayLabel(stats.busiestDay) : '—'"></strong></span>
+                </div>
+            </section>
+            <div class="grid cols-2" style="margin-top: 12px;">
+                <section class="card">
+                    <h3>Requests by hour of day <small>WAT</small></h3>
+                    <div class="chart-box small"><canvas id="hourlyChart" aria-label="Requests by hour of day" role="img"></canvas></div>
+                </section>
+                <section class="card">
+                    <h3>Slowest endpoints <small>by p95</small></h3>
+                    <p class="empty" x-show="!slowest().length">No data in this range</p>
+                    <ol class="bars">
+                        <template x-for="row in slowest()" :key="row.route">
+                            <li>
+                                <code class="row-label" x-text="row.route" :title="row.route"></code>
+                                <span class="row-value" x-text="ms(row.p95Ms)"></span>
+                                <span class="meter"><span :style="`width: ${row.p95Ms / slowest()[0].p95Ms * 100}%`"></span></span>
+                            </li>
+                        </template>
+                    </ol>
+                </section>
+            </div>
+
+            <!-- 3. Endpoints -->
+            <h2>Endpoints</h2>
+            <section class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="sortable" @click="sortBy('route')">Route <span x-text="sortMark('route')"></span></th>
+                                <th class="sortable num" @click="sortBy('calls')">Calls <span x-text="sortMark('calls')"></span></th>
+                                <th class="num">% of traffic</th>
+                                <th class="sortable num" @click="sortBy('errorRate')">Error rate <span x-text="sortMark('errorRate')"></span></th>
+                                <th class="sortable num" @click="sortBy('avgMs')">Avg <span x-text="sortMark('avgMs')"></span></th>
+                                <th class="sortable num" @click="sortBy('p95Ms')">p95 <span x-text="sortMark('p95Ms')"></span></th>
+                                <th x-show="!isRollup">Last called</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="row in sortedEndpoints()" :key="row.route">
+                                <tr>
+                                    <td><code x-text="row.route"></code></td>
+                                    <td class="num" x-text="fmt(row.calls)"></td>
+                                    <td class="num" x-text="pct(row.calls, stats.overview.requests)"></td>
+                                    <td class="num" x-text="pct(row.errorCount, row.calls)"></td>
+                                    <td class="num" x-text="ms(row.avgMs)"></td>
+                                    <td class="num" x-text="ms(row.p95Ms)"></td>
+                                    <td x-show="!isRollup" x-text="row.lastCalled ? ago(row.lastCalled) : '—'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <p class="empty" x-show="!stats.endpoints.length">No requests in this range</p>
+                </div>
+            </section>
+
+            <!-- 4. What people look for -->
+            <h2>What people look for</h2>
+            <div class="grid cols-3">
+                {{> countList title="Filters used" list="filterKeys"}}
+                {{> countList title="Search terms" note="q" list="topValues.q"}}
+                {{> countList title="Most-viewed institutions" note="profile pages" list="institutions"}}
+                {{> countList title="Top states" list="topValues.state"}}
+                {{> countList title="Top courses" list="topValues.course"}}
+                {{> countList title="Top faculties" list="topValues.faculty"}}
+                {{> countList title="Top categories" list="topValues.category"}}
+                {{> countList title="Top ownerships" list="topValues.ownership"}}
+                {{> countList title="Top institution filters" note="institution param" list="topValues.institution"}}
+                <section class="card">
+                    <h3>Searches with 0 results</h3>
+                    <div class="big" x-text="fmt(stats.zeroResults)"></div>
+                    <p class="empty" x-show="!stats.zeroResultQueries.length">None in this range</p>
+                    <ol class="bars">
+                        <template x-for="row in stats.zeroResultQueries.slice(0, 10)" :key="row.key">
+                            <li>
+                                <code class="row-label" x-text="row.key" :title="row.key"></code>
+                                <span class="row-value" x-text="fmt(row.count)"></span>
+                            </li>
+                        </template>
+                    </ol>
+                </section>
+                {{> countList title="Institution codes not found" note="404s" list="notFoundCodes"}}
+            </div>
+
+            <!-- 5. Consumers -->
+            <h2>Consumers</h2>
+            <div class="grid cols-2">
+                <section class="card">
+                    <h3>Top consumers <small x-show="isRollup">merged from daily top 25</small></h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>IP (masked)</th>
+                                    <th class="num">Requests</th>
+                                    <th x-show="!isRollup">Last seen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(row, index) in stats.consumers.slice(0, 15)" :key="index">
+                                    <tr>
+                                        <td><code x-text="row.key"></code></td>
+                                        <td class="num" x-text="fmt(row.count)"></td>
+                                        <td x-show="!isRollup" x-text="row.lastSeen ? ago(row.lastSeen) : '—'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <p class="empty" x-show="!stats.consumers.length">No data in this range</p>
+                    </div>
+                </section>
+                <div class="grid">
+                    {{> countList title="Client types" list="clientTypes"}}
+                    {{> countList title="Calling websites" note="Origin / Referer" list="referers"}}
+                </div>
+                {{> countList title="Countries" list="countries"}}
+            </div>
+
+            <!-- 6. Errors -->
+            <h2>Errors</h2>
+            <div class="grid cols-2">
+                {{> countList title="Status codes" list="statuses"}}
+                <section class="card" x-show="!isRollup">
+                    <h3>Recent errors</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Time</th><th>Status</th><th>Request</th><th>Message</th></tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="row in stats.recentErrors || []" :key="row._id">
+                                    <tr>
+                                        <td x-text="clock(row.createdAt)"></td>
+                                        <td><span class="status" :class="statusClass(row.status)" x-text="row.status"></span></td>
+                                        <td class="wrap-cell"><code x-text="row.method + ' ' + row.path"></code></td>
+                                        <td class="wrap-cell" x-text="row.errorMessage || '—'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <p class="empty" x-show="!(stats.recentErrors || []).length">No errors in this range</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </template>
+
+    <!-- 7. Recent requests -->
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <h2>Recent requests</h2>
+        <label class="toggle"><input type="checkbox" x-model="autoRefresh" @change="toggleAutoRefresh()"> Auto-refresh every 30s</label>
+    </div>
+    <section class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Request</th>
+                        <th class="num">Duration</th>
+                        <th>IP (masked)</th>
+                        <th>Client</th>
+                        <th>Country</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="row in recent" :key="row._id">
+                        <tr>
+                            <td x-text="clock(row.createdAt)"></td>
+                            <td><span class="status" :class="statusClass(row.status)" x-text="row.status"></span></td>
+                            <td class="wrap-cell"><code x-text="row.method + ' ' + row.path"></code></td>
+                            <td class="num" x-text="ms(row.durationMs)"></td>
+                            <td><code x-text="row.ipMasked || '—'"></code></td>
+                            <td x-text="row.clientType || '—'"></td>
+                            <td x-text="row.country || '—'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <p class="empty" x-show="!recent.length">No requests logged yet</p>
+        </div>
+    </section>
+</div>
+
+<script>
+    // Chart instances live outside Alpine's reactive state
+    const charts = {};
+
+    const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+    function dashboard() {
+        return {
+            ranges: [
+                { value: "24h", label: "24h" },
+                { value: "7d", label: "7d" },
+                { value: "30d", label: "30d" },
+                { value: "90d", label: "90d" },
+                { value: "12m", label: "12m" },
+                { value: "all", label: "All time" },
+            ],
+            range: "24h",
+            group: "day",
+            stats: null,
+            recent: [],
+            loading: false,
+            error: "",
+            loadedAt: null,
+            autoRefresh: false,
+            timer: null,
+            sortKey: "calls",
+            sortDir: -1,
+
+            get isRollup() {
+                return ["90d", "12m", "all"].includes(this.range);
+            },
+
+            init() {
+                try {
+                    const saved = JSON.parse(localStorage.getItem("adminDashboard") || "{}");
+                    if (this.ranges.some((option) => option.value === saved.range)) this.range = saved.range;
+                    if (["day", "week", "month"].includes(saved.group)) this.group = saved.group;
+                } catch {}
+                window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.drawCharts());
+                this.refresh();
+            },
+
+            save() {
+                try {
+                    localStorage.setItem("adminDashboard", JSON.stringify({ range: this.range, group: this.group }));
+                } catch {}
+            },
+
+            setRange(value) {
+                this.range = value;
+                this.save();
+                this.loadStats();
+            },
+
+            setGroup(value) {
+                this.group = value;
+                this.save();
+                this.loadStats();
+            },
+
+            async request(url) {
+                const response = await fetch(url, { headers: { Accept: "application/json" } });
+                if (response.status === 401) {
+                    window.location.href = "/admin/login";
+                    throw new Error("Session expired");
+                }
+                const body = await response.json();
+                if (!response.ok) throw new Error(body.message || `Request failed (${response.status})`);
+                return body;
+            },
+
+            async loadStats() {
+                this.loading = true;
+                this.error = "";
+                try {
+                    const params = new URLSearchParams({ range: this.range, group: this.group });
+                    this.stats = await this.request(`/admin/api/stats?${params}`);
+                    this.loadedAt = new Date();
+                    this.$nextTick(() => this.drawCharts());
+                } catch (error) {
+                    this.error = `Could not load stats: ${error.message}`;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async loadRecent() {
+                try {
+                    this.recent = await this.request("/admin/api/recent");
+                } catch (error) {
+                    this.error = `Could not load recent requests: ${error.message}`;
+                }
+            },
+
+            refresh() {
+                this.loadStats();
+                this.loadRecent();
+            },
+
+            toggleAutoRefresh() {
+                clearInterval(this.timer);
+                if (this.autoRefresh) this.timer = setInterval(() => this.refresh(), 30000);
+            },
+
+            drawCharts() {
+                if (!this.stats || !window.Chart) return;
+                const grid = css("--grid");
+                const muted = css("--muted");
+                const surface = css("--surface");
+                Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+                Chart.defaults.color = muted;
+
+                const scales = (stacked) => ({
+                    x: { stacked, grid: { display: false }, border: { color: css("--axis") }, ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+                    y: { stacked, beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } },
+                });
+                const tooltip = { backgroundColor: css("--ink"), titleColor: surface, bodyColor: surface, padding: 10, cornerRadius: 6 };
+
+                const series = this.stats.timeseries;
+                charts.traffic?.destroy();
+                charts.traffic = new Chart(document.getElementById("trafficChart"), {
+                    type: "bar",
+                    data: {
+                        labels: series.map((row) => this.bucketLabel(row.bucket)),
+                        datasets: [
+                            { label: "Successful", data: series.map((row) => row.success), backgroundColor: css("--series-1"), maxBarThickness: 28 },
+                            {
+                                label: "Errors (4xx/5xx)",
+                                data: series.map((row) => row.errors),
+                                backgroundColor: css("--series-2"),
+                                borderColor: surface,
+                                borderWidth: { top: 0, bottom: 2, left: 0, right: 0 },
+                                borderSkipped: false,
+                                borderRadius: { topLeft: 4, topRight: 4 },
+                                maxBarThickness: 28,
+                            },
+                        ],
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        interaction: { mode: "index", intersect: false },
+                        plugins: {
+                            legend: { position: "top", align: "start", labels: { boxWidth: 10, boxHeight: 10, useBorderRadius: true, borderRadius: 2, color: css("--ink-2") } },
+                            tooltip,
+                        },
+                        scales: scales(true),
+                    },
+                });
+
+                const hours = Array(24).fill(0);
+                for (const { hour, count } of this.stats.hourly || []) hours[hour] = count;
+                charts.hourly?.destroy();
+                charts.hourly = new Chart(document.getElementById("hourlyChart"), {
+                    type: "bar",
+                    data: {
+                        labels: hours.map((_, hour) => String(hour).padStart(2, "0")),
+                        datasets: [{ label: "Requests", data: hours, backgroundColor: css("--series-1"), borderRadius: { topLeft: 4, topRight: 4 }, maxBarThickness: 16 }],
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: { title: (items) => this.hourLabel(items[0].dataIndex) } } },
+                        scales: scales(false),
+                    },
+                });
+            },
+
+            sortBy(key) {
+                this.sortDir = this.sortKey === key ? -this.sortDir : key === "route" ? 1 : -1;
+                this.sortKey = key;
+            },
+
+            sortMark(key) {
+                return this.sortKey === key ? (this.sortDir > 0 ? "▲" : "▼") : "";
+            },
+
+            sortedEndpoints() {
+                const value = (row) => (this.sortKey === "errorRate" ? row.errorCount / row.calls : row[this.sortKey]);
+                return [...this.stats.endpoints].sort((a, b) => {
+                    const [x, y] = [value(a), value(b)];
+                    return (typeof x === "string" ? x.localeCompare(y) : (x ?? 0) - (y ?? 0)) * this.sortDir;
+                });
+            },
+
+            slowest() {
+                return [...(this.stats?.endpoints || [])].filter((row) => row.p95Ms != null).sort((a, b) => b.p95Ms - a.p95Ms).slice(0, 5);
+            },
+
+            delta() {
+                const { requests, previousRequests } = this.stats.overview;
+                return previousRequests ? (requests - previousRequests) / previousRequests : null;
+            },
+
+            deltaText() {
+                if (this.stats.overview.previousRequests == null) return "";
+                const change = this.delta();
+                if (change == null) return "No traffic in the previous period";
+                return `${change >= 0 ? "▲" : "▼"} ${Math.abs(change * 100).toFixed(1)}% vs previous ${this.range}`;
+            },
+
+            share(count, list) {
+                const max = Math.max(...(list || []).map((row) => row.count), 1);
+                return (count / max) * 100;
+            },
+
+            fmt(value) {
+                if (value == null) return "—";
+                return new Intl.NumberFormat("en", { notation: value >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+            },
+
+            pct(part, total) {
+                return total ? `${((part / total) * 100).toFixed(1)}%` : "—";
+            },
+
+            ms(value) {
+                if (value == null) return "—";
+                return value < 1000 ? `${Math.round(value)} ms` : `${(value / 1000).toFixed(2)} s`;
+            },
+
+            clock(date) {
+                return new Date(date).toLocaleString("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            },
+
+            ago(date) {
+                const seconds = Math.round((Date.now() - new Date(date)) / 1000);
+                if (seconds < 60) return `${seconds}s ago`;
+                if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+                if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+                return `${Math.floor(seconds / 86400)}d ago`;
+            },
+
+            hourLabel(hour) {
+                return `${String(hour).padStart(2, "0")}:00–${String((hour + 1) % 24).padStart(2, "0")}:00`;
+            },
+
+            // "2026-10-31" -> "31 Oct 2026"
+            dayLabel(day) {
+                return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+            },
+
+            // Buckets arrive as WAT strings: "2026-10-31 14:00" (hour) or "2026-10-31" (day/week/month)
+            bucketLabel(bucket) {
+                const [day, time] = bucket.split(" ");
+                const date = new Date(`${day}T12:00:00Z`);
+                if (time) return time;
+                if (this.stats.unit === "month") return date.toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" });
+                return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+            },
+
+            statusClass(status) {
+                return status >= 500 ? "s5" : status >= 400 ? "s4" : "";
+            },
+        };
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+</body>
+</html>

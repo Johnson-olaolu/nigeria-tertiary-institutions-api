@@ -15,6 +15,8 @@
  */
 export const errorHandler = (err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+    // Read by the request logger for the dashboard's error table
+    res.locals.errorMessage = err.message;
     
     res.status(statusCode).json({ 
         message: err.message || "Internal Server Error",

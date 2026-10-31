@@ -111,6 +111,8 @@ export const runQuery = async ({ model, res, pipeline, enrich = [], computedFiel
 
     if (!pagination) {
         const data = await model.aggregate(sortByComputed ? stages : [...stages, ...enrich]);
+        // Read by the request logger for the "searches with 0 results" stat
+        res.locals.resultCount = data.length;
         return res.status(200).json({ success: true, count: data.length, data });
     }
 
@@ -121,6 +123,7 @@ export const runQuery = async ({ model, res, pipeline, enrich = [], computedFiel
         { $facet: { data: pageStages, total: [{ $count: "count" }] } },
     ]);
     const totalCount = total[0]?.count ?? 0;
+    res.locals.resultCount = totalCount;
 
     res.status(200).json({
         success: true,
