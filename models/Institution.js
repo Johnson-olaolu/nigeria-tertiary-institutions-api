@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const CATEGORIES = ["University", "Polytechnic", "College of Education"];
+export const OWNERSHIPS = ["Federal", "State", "Private"];
 
 /**
  * @openapi
@@ -75,6 +76,38 @@ export const CATEGORIES = ["University", "Polytechnic", "College of Education"];
  *                         type: array
  *                         items:
  *                           $ref: '#/components/schemas/Course'
+ *     InstitutionListItem:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Institution'
+ *         - type: object
+ *           properties:
+ *             courseCount:
+ *               type: integer
+ *               description: Courses the institution offers
+ *               example: 85
+ *             facultyCount:
+ *               type: integer
+ *               description: Faculties/schools those courses belong to
+ *               example: 9
+ *             matchedCourses:
+ *               type: array
+ *               description: Only present when filtering by `course` or `faculty`
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/MatchedCourse'
+ *                   - type: object
+ *                     properties:
+ *                       faculty:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           code:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           category:
+ *                             $ref: '#/components/schemas/Category'
  */
 const institutionSchema = new mongoose.Schema(
     {
@@ -97,7 +130,7 @@ const institutionSchema = new mongoose.Schema(
         },
         ownership: {
             type: String,
-            enum: ["Federal", "State", "Private"],
+            enum: OWNERSHIPS,
             required: [true, "Ownership type is required"],
             trim: true,
         },

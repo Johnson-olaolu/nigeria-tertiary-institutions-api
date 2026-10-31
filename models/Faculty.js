@@ -21,6 +21,24 @@ import { CATEGORIES } from "./Institution.js";
  *         degreeAwarded:
  *           type: string
  *           example: LLB. (HONS)
+ *     FacultyListItem:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Faculty'
+ *         - type: object
+ *           properties:
+ *             courseCount:
+ *               type: integer
+ *               description: Courses in the whole faculty
+ *               example: 4
+ *             institutionCount:
+ *               type: integer
+ *               description: Institutions offering at least one course in the faculty
+ *               example: 119
+ *             matchedCourses:
+ *               type: array
+ *               description: Only present when filtering by `institution` or `course`
+ *               items:
+ *                 $ref: '#/components/schemas/MatchedCourse'
  */
 const facultySchema = new mongoose.Schema(
     {

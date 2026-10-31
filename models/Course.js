@@ -18,22 +18,59 @@ import mongoose from "mongoose";
  *         faculty:
  *           type: string
  *           description: Faculty ObjectId
- *     CourseWithFaculty:
- *       allOf:
- *         - $ref: '#/components/schemas/Course'
- *         - type: object
+ *     MatchedCourse:
+ *       description: A course that satisfied a course/faculty/institution filter
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: LAW
+ *         name:
+ *           type: string
+ *           example: Law
+ *     CourseListItem:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: LAW
+ *         name:
+ *           type: string
+ *           example: Law
+ *         faculty:
+ *           type: object
  *           properties:
- *             faculty:
- *               type: object
- *               properties:
- *                 _id:
- *                   type: string
- *                 code:
- *                   type: string
- *                 name:
- *                   type: string
- *                 category:
- *                   $ref: '#/components/schemas/Category'
+ *             _id:
+ *               type: string
+ *             code:
+ *               type: string
+ *               example: LAW
+ *             name:
+ *               type: string
+ *               example: Faculty/School/College of Law
+ *             category:
+ *               $ref: '#/components/schemas/Category'
+ *         institutionCount:
+ *           type: integer
+ *           description: Number of institutions offering the course
+ *           example: 112
+ *         offeredBy:
+ *           type: object
+ *           description: Number of offering institutions of each type
+ *           properties:
+ *             University:
+ *               type: integer
+ *               example: 112
+ *             Polytechnic:
+ *               type: integer
+ *               example: 0
+ *             College of Education:
+ *               type: integer
+ *               example: 0
  *     CourseDetail:
  *       description: A course with its faculty and the institutions that offer it
  *       allOf:
