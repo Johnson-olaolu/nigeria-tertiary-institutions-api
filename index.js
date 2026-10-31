@@ -1,7 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import connectDB from "./config/db.js";
+import swaggerSpec from "./config/swagger.js";
 
 // Import Route Files
 import institutionRoutes from "./routes/institutionRoutes.js";
@@ -36,6 +38,10 @@ app.use("/api", collegeRoutes);
 app.use("/api", facultyRoutes);
 app.use("/api", courseRoutes);
 app.use("/api/search", searchRoutes);
+
+// API Documentation (Swagger UI) and the raw OpenAPI spec
+app.get("/docs.json", (req, res) => res.json(swaggerSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Global Error Handling Middleware
 app.use(errorHandler);

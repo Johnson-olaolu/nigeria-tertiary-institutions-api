@@ -1,6 +1,27 @@
 import mongoose from "mongoose";
 import { CATEGORIES } from "./Institution.js";
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Faculty:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: LAW
+ *         name:
+ *           type: string
+ *           example: Faculty/School/College of Law
+ *         category:
+ *           $ref: '#/components/schemas/Category'
+ *         degreeAwarded:
+ *           type: string
+ *           example: LLB. (HONS)
+ */
 const facultySchema = new mongoose.Schema(
     {
         code: {

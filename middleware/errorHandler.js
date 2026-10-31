@@ -1,3 +1,18 @@
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Error:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           example: Institution not found
+ *         stack:
+ *           type: string
+ *           nullable: true
+ *           description: Only included outside production
+ */
 export const errorHandler = (err, req, res, next) => {
     const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
     

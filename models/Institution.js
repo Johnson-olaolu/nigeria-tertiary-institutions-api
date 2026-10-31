@@ -2,6 +2,80 @@ import mongoose from "mongoose";
 
 export const CATEGORIES = ["University", "Polytechnic", "College of Education"];
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Institution:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: ABU
+ *         name:
+ *           type: string
+ *           example: Ahmadu Bello University
+ *         category:
+ *           $ref: '#/components/schemas/Category'
+ *         ownership:
+ *           $ref: '#/components/schemas/Ownership'
+ *         state:
+ *           type: string
+ *           example: Kaduna
+ *         address:
+ *           type: string
+ *           example: Zaria
+ *         logoUrl:
+ *           type: string
+ *         website:
+ *           type: string
+ *           example: https://www.abu.edu.ng
+ *         isActive:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     InstitutionSummary:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: ABU
+ *         name:
+ *           type: string
+ *           example: Ahmadu Bello University
+ *         category:
+ *           $ref: '#/components/schemas/Category'
+ *         ownership:
+ *           $ref: '#/components/schemas/Ownership'
+ *         state:
+ *           type: string
+ *           example: Kaduna
+ *     InstitutionProfile:
+ *       description: An institution with the faculties and courses it offers
+ *       allOf:
+ *         - $ref: '#/components/schemas/Institution'
+ *         - type: object
+ *           properties:
+ *             faculties:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Faculty'
+ *                   - type: object
+ *                     properties:
+ *                       courses:
+ *                         type: array
+ *                         items:
+ *                           $ref: '#/components/schemas/Course'
+ */
 const institutionSchema = new mongoose.Schema(
     {
         code: {

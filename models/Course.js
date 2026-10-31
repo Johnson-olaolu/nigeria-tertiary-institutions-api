@@ -1,5 +1,52 @@
 import mongoose from "mongoose";
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Course:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         code:
+ *           type: string
+ *           example: LAW
+ *         name:
+ *           type: string
+ *           example: Law
+ *         faculty:
+ *           type: string
+ *           description: Faculty ObjectId
+ *     CourseWithFaculty:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Course'
+ *         - type: object
+ *           properties:
+ *             faculty:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 code:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 category:
+ *                   $ref: '#/components/schemas/Category'
+ *     CourseDetail:
+ *       description: A course with its faculty and the institutions that offer it
+ *       allOf:
+ *         - $ref: '#/components/schemas/Course'
+ *         - type: object
+ *           properties:
+ *             faculty:
+ *               $ref: '#/components/schemas/Faculty'
+ *             institutions:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/InstitutionSummary'
+ */
 const courseSchema = new mongoose.Schema(
     {
         code: {
