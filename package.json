@@ -1,7 +1,7 @@
 {
   "name": "jamb",
   "version": "1.0.0",
-  "description": "",
+  "description": "Public REST API for Nigerian universities, polytechnics and colleges of education, their faculties and courses",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "cors": "^2.8.6",
