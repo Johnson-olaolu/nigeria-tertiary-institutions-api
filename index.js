@@ -12,6 +12,7 @@ import institutionRoutes from "./routes/institutionRoutes.js";
 import facultyRoutes from "./routes/facultyRoutes.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import mcpRoutes from "./routes/mcpRoutes.js";
 
 // Import Request Logger Middleware
 import { requestLogger } from "./middleware/requestLogger.js";
@@ -47,6 +48,9 @@ app.use("/api", courseRoutes);
 // API Documentation (Swagger UI) and the raw OpenAPI spec
 app.get("/docs.json", (req, res) => res.json(swaggerSpec));
 app.get("/docs", (req, res) => res.type("html").send(docsPage));
+
+// MCP server for AI assistants (Streamable HTTP)
+app.use("/mcp", mcpRoutes);
 
 // Admin dashboard for API usage
 app.use("/admin", adminRoutes);

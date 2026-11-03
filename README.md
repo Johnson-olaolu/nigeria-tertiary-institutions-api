@@ -5,6 +5,7 @@ A free, public, read-only REST API for Nigerian universities, polytechnics and c
 - **Base URL:** <https://nigeria-tertiary-institutions-api.vercel.app>
 - **Interactive docs (Swagger UI):** <https://nigeria-tertiary-institutions-api.vercel.app/docs>
 - **OpenAPI 3 spec (JSON):** <https://nigeria-tertiary-institutions-api.vercel.app/docs.json>
+- **MCP server for AI assistants:** <https://nigeria-tertiary-institutions-api.vercel.app/mcp> ([setup](#mcp-server))
 
 No API key or sign-up needed. CORS is open, so you can call it straight from a browser.
 
@@ -14,6 +15,7 @@ No API key or sign-up needed. CORS is open, so you can call it straight from a b
 
 - [What's in the data](#whats-in-the-data)
 - [Quick start](#quick-start)
+- [MCP server](#mcp-server)
 - [Data model](#data-model)
 - [Endpoints](#endpoints)
 - [Query conventions](#query-conventions)
@@ -76,6 +78,88 @@ const res = await fetch(
 const { count, data } = await res.json();
 console.log(`${count} federal institutions offer Medicine`);
 ```
+
+---
+
+## MCP server
+
+The API is also a remote [Model Context Protocol](https://modelcontextprotocol.io) server, so AI assistants such as Claude, Cursor and VS Code Copilot can query the data directly. Point your client at:
+
+```text
+https://nigeria-tertiary-institutions-api.vercel.app/mcp
+```
+
+It uses the Streamable HTTP transport and needs no authentication.
+
+### Connecting
+
+**Claude Code:** run
+
+```bash
+claude mcp add --transport http nigeria-institutions https://nigeria-tertiary-institutions-api.vercel.app/mcp
+```
+
+**Claude Desktop / claude.ai:** go to *Settings → Connectors → Add custom connector* and paste the URL.
+
+**Cursor** (`~/.cursor/mcp.json` or `.cursor/mcp.json` in a project):
+
+```json
+{
+  "mcpServers": {
+    "nigeria-institutions": { "url": "https://nigeria-tertiary-institutions-api.vercel.app/mcp" }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "nigeria-institutions": { "type": "http", "url": "https://nigeria-tertiary-institutions-api.vercel.app/mcp" }
+  }
+}
+```
+
+Then ask things like *"Which federal universities in the South-West offer Medicine?"* or *"Compare the faculties at ABU and the University of Lagos."*
+
+### Tools
+
+All tools are read-only.
+
+| Tool                   | What it does                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `search_institutions`  | Search institutions by name, state, ownership, category, course or faculty                       |
+| `get_institution`      | Full profile of one institution by code, with its faculties and courses                          |
+| `search_faculties`     | Search faculties/schools by category, degree, course or institution                              |
+| `get_faculty_courses`  | Every course under one faculty/school                                                            |
+| `search_courses`       | Search courses by name, faculty, or the institutions offering them                               |
+| `get_course`           | One course with every institution that offers it                                                 |
+| `get_dataset_overview` | Counts by category, plus the valid states, categories, ownerships and sort fields                |
+
+The tools take the same filters as the [REST endpoints](#endpoints) and follow the same [query conventions](#query-conventions), with two differences:
+
+- `category` and `ownership` are arrays (`["Federal", "State"]`), so clients can see the allowed values.
+- Search results are always paginated, 20 per page by default and at most 200, so an unfiltered search doesn't flood the model's context. `createdAt`, `updatedAt` and `__v` are left out of results for the same reason.
+
+### Testing it
+
+Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http --method tools/list
+
+npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport http \
+  --method tools/call --tool-name search_institutions --tool-arg course=MEDICINE --tool-arg limit=5
+```
+
+Run it without `--cli` for the interactive web UI.
+
+### How it works
+
+`routes/mcpRoutes.js` serves the endpoint in **stateless** mode: each `POST /mcp` gets a new server and transport, and responses are plain JSON. No sessions means it runs on serverless hosts like Vercel, where requests can land on different instances. `GET` and `DELETE /mcp` return `405`.
+
+The tools are defined in `mcp/server.js` and call the same data functions as the REST controllers (`searchInstitutions`, `getInstitutionProfile`, …). Both interfaces always return the same results.
 
 ---
 
@@ -430,12 +514,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 - Most-used filters and their most popular values (e.g. top states and courses searched)
 - Most-viewed institution profiles, and institution codes that returned 404
 - Searches that returned zero results, which point to gaps in the data
-- Client types (browser, CLI, server, bot), referring sites and countries
+- Client types (browser, CLI, server, bot, MCP), referring sites and countries
 - Recent requests and recent errors
 
 ### How requests are logged
 
 `middleware/requestLogger.js` records every `/api` request after the response is sent: route, path, status, duration, the known query params, result count, user agent and client type, referer host, and country (from Vercel's `x-vercel-ip-country` header).
+
+MCP tool calls are logged the same way, through `recordApiLog`. They appear with method `MCP`, a route like `mcp:search_institutions`, and client type `mcp`. Their arguments use the REST parameter names, so the filter and top-value tables combine both kinds of traffic. Calls that fail the tool's input schema are rejected by the MCP SDK before they reach the tool, so they aren't logged.
 
 Client IPs are never stored in full. Each IP is stored as an HMAC-SHA256 hash keyed with `IP_HASH_SALT`, used to count unique consumers, and as a masked prefix for display (`102.89.x.x`).
 
@@ -480,7 +566,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://nigeria-tertiary-institutio
 
 ```text
 .
-├── index.js                  # Express app: middleware, routes, docs, admin, error handler
+├── index.js                  # Express app: middleware, routes, docs, MCP, admin, error handler
 ├── config/
 │   ├── db.js                 # MongoDB connection
 │   ├── swagger.js            # OpenAPI base definition and shared params/responses
@@ -489,8 +575,10 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://nigeria-tertiary-institutio
 │   ├── institutionRoutes.js
 │   ├── facultyRoutes.js
 │   ├── courseRoutes.js
-│   └── adminRoutes.js
-├── controllers/              # Request handlers and aggregation pipelines
+│   ├── adminRoutes.js
+│   └── mcpRoutes.js          # Stateless Streamable HTTP endpoint at /mcp
+├── controllers/              # Query functions (shared by REST and MCP) and their Express handlers
+├── mcp/server.js             # MCP tool definitions
 ├── models/
 │   ├── Institution.js        # + CATEGORIES and OWNERSHIPS enums
 │   ├── Faculty.js
@@ -498,7 +586,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://nigeria-tertiary-institutio
 │   ├── ApiLog.js             # Raw request log (30-day TTL)
 │   └── ApiDailyStat.js       # Daily analytics rollup
 ├── middleware/
-│   ├── requestLogger.js      # Logs /api requests for analytics
+│   ├── requestLogger.js      # Logs /api requests and MCP tool calls for analytics
 │   ├── adminAuth.js          # Admin sessions, login lockout, cron auth
 │   ├── setCategory.js        # Fixes the category for /universities etc. routes
 │   └── errorHandler.js       # JSON error responses
@@ -512,7 +600,9 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://nigeria-tertiary-institutio
 └── vercel.json               # Vercel Cron schedule
 ```
 
-The query endpoints use the same helpers. Each controller builds a MongoDB aggregation pipeline from the request's filters. `runQuery` in `utils/queryHelpers.js` then sorts and optionally paginates the results and sends the standard list response. Computed counts are added after pagination unless the sort depends on them.
+The query endpoints use the same helpers. Each controller exports plain data functions (`searchInstitutions`, `getCourseDetail`, …) that build a MongoDB aggregation pipeline from a query object. `runQuery` in `utils/queryHelpers.js` sorts and optionally paginates the results and returns the standard list envelope. Computed counts are added after pagination unless the sort depends on them.
+
+The Express handlers send that envelope with `sendList`, and the MCP tools return it to the model. Invalid input is thrown as `httpError(400, …)` and unknown ids or codes as `httpError(404, …)`. `errorHandler` turns these into JSON responses, and the MCP tools return them as `isError` results.
 
 ---
 

@@ -6,6 +6,7 @@ import {
     codeOrNameMatch,
     containsRegex,
     exactRegex,
+    httpError,
     isObjectIdString,
     parseEnumList,
     parseList,
@@ -13,6 +14,7 @@ import {
     parseSort,
     resolveCodeOrName,
     runQuery,
+    sendList,
 } from "../utils/queryHelpers.js";
 
 export const SORT_FIELDS = ["name", "code", "institutionCount"];
@@ -58,13 +60,13 @@ const countStages = [
     { $unset: ["_offeredBy", "institutions"] },
 ];
 
-const buildCoursePipeline = async (res, query, fixedCategory) => {
+const buildCoursePipeline = async (query, fixedCategory) => {
     // A course qualifies if at least one offering institution meets all of these together
     const offeredBy = {};
-    const categories = fixedCategory ? [fixedCategory] : parseEnumList(res, "category", query.category, CATEGORIES);
+    const categories = fixedCategory ? [fixedCategory] : parseEnumList("category", query.category, CATEGORIES);
     if (categories.length) offeredBy.category = { $in: categories };
     if (query.state) offeredBy.state = { $in: parseList(query.state).map(exactRegex) };
-    if (query.ownership) offeredBy.ownership = { $in: parseEnumList(res, "ownership", query.ownership, OWNERSHIPS) };
+    if (query.ownership) offeredBy.ownership = { $in: parseEnumList("ownership", query.ownership, OWNERSHIPS) };
 
     const match = {};
 
@@ -97,38 +99,57 @@ const buildCoursePipeline = async (res, query, fixedCategory) => {
     ];
 };
 
+// All courses; only sort and pagination params apply
+export const listCourses = (query) =>
+    runQuery({
+        model: Course,
+        pipeline: [...facultyStages, institutionsLookup],
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort: parseSort(query.sort, SORT_FIELDS),
+        pagination: parsePagination(query),
+    });
+
+// Courses matching text, faculty, offering institution and the type/state/ownership of institutions offering them
+export const searchCourses = async (query, fixedCategory) => {
+    const sort = parseSort(query.sort, SORT_FIELDS);
+    const pagination = parsePagination(query);
+
+    return runQuery({
+        model: Course,
+        pipeline: await buildCoursePipeline(query, fixedCategory),
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort,
+        pagination,
+    });
+};
+
+// One course with its faculty and the institutions that offer it
+export const getCourseDetail = async (id) => {
+    const course = mongoose.isValidObjectId(id)
+        ? await Course.findById(id)
+              .populate("faculty")
+              .populate("institutions", "code name category ownership state")
+        : null;
+
+    if (!course) throw httpError(404, "Course not found");
+    return course;
+};
+
 // Get all courses
 export const getAllCourses = async (req, res, next) => {
     try {
-        await runQuery({
-            model: Course,
-            res,
-            pipeline: [...facultyStages, institutionsLookup],
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort: parseSort(res, req.query.sort, SORT_FIELDS),
-            pagination: parsePagination(res, req.query),
-        });
+        sendList(res, await listCourses(req.query));
     } catch (error) {
         next(error);
     }
 };
 
-// Query courses by text, faculty, offering institution and the type/state/ownership of institutions offering them
+// Query courses
 export const queryCourses = async (req, res, next) => {
     try {
-        const sort = parseSort(res, req.query.sort, SORT_FIELDS);
-        const pagination = parsePagination(res, req.query);
-
-        await runQuery({
-            model: Course,
-            res,
-            pipeline: await buildCoursePipeline(res, req.query, req.category),
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort,
-            pagination,
-        });
+        sendList(res, await searchCourses(req.query, req.category));
     } catch (error) {
         next(error);
     }
@@ -137,22 +158,9 @@ export const queryCourses = async (req, res, next) => {
 // Get a single course with the institutions that offer it
 export const getCourseById = async (req, res, next) => {
     try {
-        const { id } = req.params;
-
-        const course = mongoose.isValidObjectId(id)
-            ? await Course.findById(id)
-                  .populate("faculty")
-                  .populate("institutions", "code name category ownership state")
-            : null;
-
-        if (!course) {
-            res.statusCode = 404;
-            throw new Error("Course not found");
-        }
-
         res.status(200).json({
             success: true,
-            data: course,
+            data: await getCourseDetail(req.params.id),
         });
     } catch (error) {
         next(error);

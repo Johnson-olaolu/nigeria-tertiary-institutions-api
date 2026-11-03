@@ -6,11 +6,13 @@ import {
     codeOrNameExpr,
     codeOrNameMatch,
     containsRegex,
+    httpError,
     parseEnumList,
     parsePagination,
     parseSort,
     resolveCodeOrName,
     runQuery,
+    sendList,
 } from "../utils/queryHelpers.js";
 
 export const SORT_FIELDS = ["name", "code", "category", "courseCount", "institutionCount"];
@@ -42,7 +44,7 @@ const countStages = [
     { $unset: "_courses" },
 ];
 
-const buildFacultyMatch = (res, query, fixedCategory) => {
+const buildFacultyMatch = (query, fixedCategory) => {
     const match = {};
 
     if (query.q) {
@@ -51,7 +53,7 @@ const buildFacultyMatch = (res, query, fixedCategory) => {
     }
     if (query.degree) match.degreeAwarded = containsRegex(query.degree);
 
-    const categories = fixedCategory ? [fixedCategory] : parseEnumList(res, "category", query.category, CATEGORIES);
+    const categories = fixedCategory ? [fixedCategory] : parseEnumList("category", query.category, CATEGORIES);
     if (categories.length) match.category = { $in: categories };
 
     return match;
@@ -85,40 +87,59 @@ const buildMatchedCourseStages = async (query) => {
     ];
 };
 
+// All faculties/schools; only sort and pagination params apply
+export const listFaculties = (query) =>
+    runQuery({
+        model: Faculty,
+        pipeline: [coursesLookup],
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort: parseSort(query.sort, SORT_FIELDS),
+        pagination: parsePagination(query),
+    });
+
+// Faculties/schools matching category, degree, the courses they contain and the institutions offering them
+export const searchFaculties = async (query, fixedCategory) => {
+    // Validate everything before resolving institutions
+    const match = buildFacultyMatch(query, fixedCategory);
+    const sort = parseSort(query.sort, SORT_FIELDS);
+    const pagination = parsePagination(query);
+
+    return runQuery({
+        model: Faculty,
+        pipeline: [{ $match: match }, coursesLookup, ...(await buildMatchedCourseStages(query))],
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort,
+        pagination,
+    });
+};
+
+// One faculty with the courses under it
+export const getFacultyWithCourses = async (id) => {
+    const faculty = mongoose.isValidObjectId(id) ? await Faculty.findById(id) : null;
+    if (!faculty) throw httpError(404, "Faculty not found");
+
+    const courses = await Course.find({ faculty: faculty._id })
+        .select("-institutions")
+        .sort({ name: 1 });
+
+    return { faculty, courses };
+};
+
 // Get all faculties/schools
 export const getAllFaculties = async (req, res, next) => {
     try {
-        await runQuery({
-            model: Faculty,
-            res,
-            pipeline: [coursesLookup],
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort: parseSort(res, req.query.sort, SORT_FIELDS),
-            pagination: parsePagination(res, req.query),
-        });
+        sendList(res, await listFaculties(req.query));
     } catch (error) {
         next(error);
     }
 };
 
-// Query faculties/schools by category, degree, the courses they contain and the institutions offering them
+// Query faculties/schools
 export const queryFaculties = async (req, res, next) => {
     try {
-        // Validate everything before resolving institutions
-        const match = buildFacultyMatch(res, req.query, req.category);
-        const sort = parseSort(res, req.query.sort, SORT_FIELDS);
-        const pagination = parsePagination(res, req.query);
-
-        await runQuery({
-            model: Faculty,
-            res,
-            pipeline: [{ $match: match }, coursesLookup, ...(await buildMatchedCourseStages(req.query))],
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort,
-            pagination,
-        });
+        sendList(res, await searchFaculties(req.query, req.category));
     } catch (error) {
         next(error);
     }
@@ -127,18 +148,7 @@ export const queryFaculties = async (req, res, next) => {
 // Get the courses under a single faculty
 export const getFacultyCourses = async (req, res, next) => {
     try {
-        const { id } = req.params;
-
-        const faculty = mongoose.isValidObjectId(id) ? await Faculty.findById(id) : null;
-
-        if (!faculty) {
-            res.statusCode = 404;
-            throw new Error("Faculty not found");
-        }
-
-        const courses = await Course.find({ faculty: faculty._id })
-            .select("-institutions")
-            .sort({ name: 1 });
+        const { faculty, courses } = await getFacultyWithCourses(req.params.id);
 
         res.status(200).json({
             success: true,

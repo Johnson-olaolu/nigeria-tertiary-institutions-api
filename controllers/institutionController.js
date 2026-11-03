@@ -5,12 +5,14 @@ import {
     codeOrNameMatch,
     containsRegex,
     exactRegex,
+    httpError,
     parseEnumList,
     parseList,
     parsePagination,
     parseSort,
     resolveCodeOrName,
     runQuery,
+    sendList,
 } from "../utils/queryHelpers.js";
 
 export const SORT_FIELDS = ["name", "code", "state", "courseCount", "facultyCount"];
@@ -37,7 +39,7 @@ const countStages = [
 ];
 
 // Filters on the institution document's own fields
-const buildInstitutionMatch = (res, query, fixedCategory) => {
+const buildInstitutionMatch = (query, fixedCategory) => {
     const match = {};
 
     if (query.q) {
@@ -48,9 +50,9 @@ const buildInstitutionMatch = (res, query, fixedCategory) => {
     if (query.address) match.address = containsRegex(query.address);
     if (query.code) match.code = { $in: parseList(query.code).map(exactRegex) };
     if (query.state) match.state = { $in: parseList(query.state).map(exactRegex) };
-    if (query.ownership) match.ownership = { $in: parseEnumList(res, "ownership", query.ownership, OWNERSHIPS) };
+    if (query.ownership) match.ownership = { $in: parseEnumList("ownership", query.ownership, OWNERSHIPS) };
 
-    const categories = fixedCategory ? [fixedCategory] : parseEnumList(res, "category", query.category, CATEGORIES);
+    const categories = fixedCategory ? [fixedCategory] : parseEnumList("category", query.category, CATEGORIES);
     if (categories.length) match.category = { $in: categories };
 
     return match;
@@ -91,79 +93,81 @@ const buildOfferingStages = async (query) => {
     ];
 };
 
+// All institutions; only sort and pagination params apply
+export const listInstitutions = (query) =>
+    runQuery({
+        model: Institution,
+        pipeline: [],
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort: parseSort(query.sort, SORT_FIELDS),
+        pagination: parsePagination(query),
+    });
+
+// Institutions matching their own fields, the courses they offer and the faculties they have
+export const searchInstitutions = async (query, fixedCategory) => {
+    // Validate everything before resolving course/faculty codes
+    const match = buildInstitutionMatch(query, fixedCategory);
+    const sort = parseSort(query.sort, SORT_FIELDS);
+    const pagination = parsePagination(query);
+
+    return runQuery({
+        model: Institution,
+        pipeline: [{ $match: match }, ...(await buildOfferingStages(query))],
+        enrich: countStages,
+        computedFields: COMPUTED_FIELDS,
+        sort,
+        pagination,
+    });
+};
+
+// One institution by code, with the faculties and courses it offers
+export const getInstitutionProfile = async (code, fixedCategory) => {
+    const filter = { code };
+    if (fixedCategory) filter.category = fixedCategory;
+
+    const foundInstitution = await Institution.findOne(filter).lean();
+    if (!foundInstitution) throw httpError(404, "Institution not found");
+
+    const courses = await Course.find({ institutions: foundInstitution._id })
+        .select("-institutions")
+        .populate("faculty")
+        .sort({ name: 1 })
+        .lean();
+
+    // Group courses under their faculty
+    const faculties = new Map();
+    for (const { faculty, ...course } of courses) {
+        const key = String(faculty._id);
+        if (!faculties.has(key)) faculties.set(key, { ...faculty, courses: [] });
+        faculties.get(key).courses.push(course);
+    }
+
+    return { ...foundInstitution, faculties: [...faculties.values()] };
+};
+
 // Get all institutions
 export const getAllInstitutions = async (req, res, next) => {
     try {
-        await runQuery({
-            model: Institution,
-            res,
-            pipeline: [],
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort: parseSort(res, req.query.sort, SORT_FIELDS),
-            pagination: parsePagination(res, req.query),
-        });
+        sendList(res, await listInstitutions(req.query));
     } catch (error) {
         next(error);
     }
 };
 
-// Query institutions by their own fields, the courses they offer and the faculties they have
+// Query institutions
 export const queryInstitutions = async (req, res, next) => {
     try {
-        // Validate everything before resolving course/faculty codes
-        const match = buildInstitutionMatch(res, req.query, req.category);
-        const sort = parseSort(res, req.query.sort, SORT_FIELDS);
-        const pagination = parsePagination(res, req.query);
-
-        await runQuery({
-            model: Institution,
-            res,
-            pipeline: [{ $match: match }, ...(await buildOfferingStages(req.query))],
-            enrich: countStages,
-            computedFields: COMPUTED_FIELDS,
-            sort,
-            pagination,
-        });
+        sendList(res, await searchInstitutions(req.query, req.category));
     } catch (error) {
         next(error);
     }
 };
 
-// Get a single institution profile by its code, with the faculties and courses it offers
+// Get a single institution profile by its code
 export const getInstitutionByCode = async (req, res, next) => {
     try {
-        const filter = { code: req.params.code };
-        if (req.category) filter.category = req.category;
-
-        const foundInstitution = await Institution.findOne(filter).lean();
-
-        if (!foundInstitution) {
-            res.statusCode = 404;
-            throw new Error("Institution not found");
-        }
-
-        const courses = await Course.find({ institutions: foundInstitution._id })
-            .select("-institutions")
-            .populate("faculty")
-            .sort({ name: 1 })
-            .lean();
-
-        // Group courses under their faculty
-        const faculties = new Map();
-        for (const { faculty, ...course } of courses) {
-            const key = String(faculty._id);
-            if (!faculties.has(key)) faculties.set(key, { ...faculty, courses: [] });
-            faculties.get(key).courses.push(course);
-        }
-
-        res.status(200).json({
-            success: true,
-            data: {
-                ...foundInstitution,
-                faculties: [...faculties.values()],
-            },
-        });
+        res.status(200).json({ success: true, data: await getInstitutionProfile(req.params.code, req.category) });
     } catch (error) {
         next(error);
     }

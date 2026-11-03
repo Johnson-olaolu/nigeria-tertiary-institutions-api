@@ -66,6 +66,8 @@ const definition = {
             "- Most filters accept comma-separated values, matched as *any of*: `state=Lagos,Ogun`, `course=LAW,MEDICINE`.",
             "- Different filters combine as *all of*.",
             `- Pagination is optional: results are unpaginated unless \`page\` or \`limit\` is passed (default limit ${DEFAULT_LIMIT}, max ${MAX_LIMIT}).`,
+            "",
+            "**AI assistants:** the same data is available as an MCP server (Streamable HTTP) at `/mcp`.",
         ].join("\n"),
     },
     servers: [{ url: "/" }],

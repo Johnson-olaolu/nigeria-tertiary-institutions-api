@@ -75,6 +75,32 @@ const parseFilters = (query) => {
     return { filters, terms };
 };
 
+// Writes one ApiLog row; client details come from req, the rest from the caller (REST middleware or MCP tools)
+export const recordApiLog = (req, { method, route, path, status, durationMs, query, resultCount, institutionCode, errorMessage, clientType }) => {
+    const userAgent = req.headers["user-agent"] ? clip(req.headers["user-agent"], 300) : undefined;
+    const ip = clientIp(req);
+    const { filters, terms } = parseFilters(query);
+
+    ApiLog.create({
+        method,
+        route,
+        path: clip(path, 300),
+        status,
+        durationMs,
+        filters,
+        terms,
+        resultCount,
+        institutionCode: institutionCode ? clip(institutionCode).toUpperCase() : undefined,
+        ipHash: ip ? hashIp(ip) : undefined,
+        ipMasked: ip ? maskIp(ip) : undefined,
+        userAgent,
+        clientType: clientType ?? classifyClient(userAgent),
+        refererHost: refererHost(req),
+        country: req.headers["x-vercel-ip-country"],
+        errorMessage,
+    }).catch((error) => console.error(`Failed to log API request: ${error.message}`));
+};
+
 // Records every request under the mount path in ApiLog once the response has been sent
 export const requestLogger = (req, res, next) => {
     const start = process.hrtime.bigint();
@@ -84,33 +110,23 @@ export const requestLogger = (req, res, next) => {
     res.on("finish", () => {
         const route = req.route ? `${base}${req.route.path}` : "unmatched";
         const pathname = req.originalUrl.split("?")[0];
-        const userAgent = req.headers["user-agent"] ? clip(req.headers["user-agent"], 300) : undefined;
-        const ip = clientIp(req);
-        const { filters, terms } = parseFilters(req.query);
 
         let institutionCode;
         if (route.startsWith(`${base}/institutions/`) && route.endsWith("/:code")) {
-            institutionCode = clip(safeDecode(pathname.split("/").pop())).toUpperCase();
+            institutionCode = safeDecode(pathname.split("/").pop());
         }
 
-        ApiLog.create({
+        recordApiLog(req, {
             method: req.method,
             route,
-            path: clip(pathname, 300),
+            path: pathname,
             status: res.statusCode,
             durationMs: Number(process.hrtime.bigint() - start) / 1e6,
-            filters,
-            terms,
+            query: req.query,
             resultCount: res.locals.resultCount,
             institutionCode,
-            ipHash: ip ? hashIp(ip) : undefined,
-            ipMasked: ip ? maskIp(ip) : undefined,
-            userAgent,
-            clientType: classifyClient(userAgent),
-            refererHost: refererHost(req),
-            country: req.headers["x-vercel-ip-country"],
             errorMessage: res.locals.errorMessage,
-        }).catch((error) => console.error(`Failed to log API request: ${error.message}`));
+        });
     });
 
     next();

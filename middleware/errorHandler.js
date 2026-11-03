@@ -14,7 +14,7 @@
  *           description: Only included outside production
  */
 export const errorHandler = (err, req, res, next) => {
-    const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+    const statusCode = err.status ?? (res.statusCode === 200 ? 500 : res.statusCode);
     // Read by the request logger for the dashboard's error table
     res.locals.errorMessage = err.message;
     

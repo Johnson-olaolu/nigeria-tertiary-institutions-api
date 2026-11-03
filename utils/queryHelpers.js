@@ -10,10 +10,8 @@ export const CATEGORY_ALIASES = {
     "college-of-education": "College of Education",
 };
 
-const badRequest = (res, message) => {
-    res.statusCode = 400;
-    return new Error(message);
-};
+// Error carrying an HTTP status, read by the error handler and the MCP tools
+export const httpError = (status, message) => Object.assign(new Error(message), { status });
 
 // Treat user input as literal text inside a regex
 export const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -34,10 +32,10 @@ export const parseList = (value) =>
               .filter(Boolean);
 
 // Case-insensitive enum list; unknown values are a 400
-export const parseEnumList = (res, name, value, allowed) =>
+export const parseEnumList = (name, value, allowed) =>
     parseList(value).map((item) => {
         const match = allowed.find((option) => option.toLowerCase() === item.toLowerCase());
-        if (!match) throw badRequest(res, `Invalid ${name} "${item}". Allowed values: ${allowed.join(", ")}`);
+        if (!match) throw httpError(400, `Invalid ${name} "${item}". Allowed values: ${allowed.join(", ")}`);
         return match;
     });
 
@@ -73,32 +71,39 @@ export const codeOrNameExpr = ({ codes, names }, variable) => ({
 });
 
 // Pagination is optional: null unless page or limit is passed
-export const parsePagination = (res, query) => {
+export const parsePagination = (query) => {
     if (query.page === undefined && query.limit === undefined) return null;
 
     const page = query.page === undefined ? 1 : Number(query.page);
     const limit = query.limit === undefined ? DEFAULT_LIMIT : Number(query.limit);
 
-    if (!Number.isInteger(page) || page < 1) throw badRequest(res, "page must be a positive integer");
+    if (!Number.isInteger(page) || page < 1) throw httpError(400, "page must be a positive integer");
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-        throw badRequest(res, `limit must be an integer between 1 and ${MAX_LIMIT}`);
+        throw httpError(400, `limit must be an integer between 1 and ${MAX_LIMIT}`);
     }
     return { page, limit };
 };
 
 // "name" or "-courseCount" -> { field, direction }
-export const parseSort = (res, value, allowed, defaultField = "name") => {
+export const parseSort = (value, allowed, defaultField = "name") => {
     const raw = value ? String(value).trim() : defaultField;
     const field = raw.replace(/^-/, "");
-    if (!allowed.includes(field)) throw badRequest(res, `Invalid sort "${raw}". Allowed fields: ${allowed.join(", ")}`);
+    if (!allowed.includes(field)) throw httpError(400, `Invalid sort "${raw}". Allowed fields: ${allowed.join(", ")}`);
     return { field, direction: raw.startsWith("-") ? -1 : 1 };
 };
 
+// Sends a runQuery result as the standard list response
+export const sendList = (res, result) => {
+    // Read by the request logger for the "searches with 0 results" stat
+    res.locals.resultCount = result.total ?? result.count;
+    res.status(200).json(result);
+};
+
 /**
- * Finish a pipeline with sorting and optional pagination, then send the standard list response.
+ * Finish a pipeline with sorting and optional pagination, and return the standard list envelope.
  * `enrich` stages add derived fields (counts etc.); they run after pagination unless the sort needs them.
  */
-export const runQuery = async ({ model, res, pipeline, enrich = [], computedFields = [], sort, pagination }) => {
+export const runQuery = async ({ model, pipeline, enrich = [], computedFields = [], sort, pagination }) => {
     const sortByComputed = computedFields.includes(sort.field);
     const sortStages = [
         // Sort strings case-insensitively; _id keeps page boundaries stable
@@ -111,9 +116,7 @@ export const runQuery = async ({ model, res, pipeline, enrich = [], computedFiel
 
     if (!pagination) {
         const data = await model.aggregate(sortByComputed ? stages : [...stages, ...enrich]);
-        // Read by the request logger for the "searches with 0 results" stat
-        res.locals.resultCount = data.length;
-        return res.status(200).json({ success: true, count: data.length, data });
+        return { success: true, count: data.length, data };
     }
 
     const { page, limit } = pagination;
@@ -123,14 +126,13 @@ export const runQuery = async ({ model, res, pipeline, enrich = [], computedFiel
         { $facet: { data: pageStages, total: [{ $count: "count" }] } },
     ]);
     const totalCount = total[0]?.count ?? 0;
-    res.locals.resultCount = totalCount;
 
-    res.status(200).json({
+    return {
         success: true,
         count: data.length,
         total: totalCount,
         page,
         pages: Math.ceil(totalCount / limit),
         data,
-    });
+    };
 };
